@@ -1,9 +1,9 @@
-from chains.chain import review_chain 
+from chains.chain import chain 
 
 context = "Legal stuff is cool"
 question = "What is inmigration law"
 
-response = review_chain.invoke({
+response = chain.invoke({
     "context": context,
     "question": question
 })

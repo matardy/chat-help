@@ -5,3 +5,7 @@ langchain-openai
 openai
 python-dotenv
 redis
+langchain-chroma
+pypdf
+chromadb
+langchain-text-splitters

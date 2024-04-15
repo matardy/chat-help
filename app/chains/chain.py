@@ -3,10 +3,33 @@ from langchain.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
     ChatPromptTemplate,
+    MessagesPlaceholder
 )
 from langchain_core.output_parsers import StrOutputParser
 from chains.llm import chat_model
 from cache.message_history import get_memory_runnable
+from vector_store.chroma_utils import get_retriever
+from langchain.schema.runnable import RunnablePassthrough
+from vector_store.chroma_utils import load_docs, split_docs, create_collection
+import chromadb
+import os
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+
+def get_absolute_path(relative_path):
+    base_path = os.path.dirname(os.path.abspath(__file__))  # Gets the directory of the current script
+    return os.path.join(base_path, relative_path)
+
+persist_directory = get_absolute_path('../../app/chroma/')
+persistent_client = chromadb.PersistentClient(path=persist_directory)
+vector_db = Chroma(
+        client=persistent_client,
+        persist_directory=persist_directory,
+        collection_name="collection-foobar",
+        embedding_function=OpenAIEmbeddings()
+    )
+retriever = vector_db.as_retriever(k=10)
+
 
 review_template_str = """You are an Legal Assistant AI chat, you have full context of the conversation and always respond in a very elegant way. 
 - Always respond in the language of the user. 
@@ -16,42 +39,64 @@ review_template_str = """You are an Legal Assistant AI chat, you have full conte
 {context}
 
 Message histry:
-{history}
+{chat_history}
 """
 
-review_system_prompt = SystemMessagePromptTemplate(
+system_prompt = SystemMessagePromptTemplate(
     prompt=PromptTemplate(
-        input_variables=["context","history"],
+        input_variables=["context","chat_history"],
         template=review_template_str
     )
 )
 
-review_human_prompt = HumanMessagePromptTemplate(
+human_prompt = HumanMessagePromptTemplate(
     prompt=PromptTemplate(
-        input_variables=["question"],
-        template = "{question}"
+        input_variables=["input"],
+        template = "{input}"
     )
 )
 
-messages = [review_system_prompt, review_human_prompt]
+messages = [system_prompt, human_prompt]
 
-review_prompt_template = ChatPromptTemplate(
-    input_variables=["context", "question","history"], 
+prompt_template = ChatPromptTemplate(
+    input_variables=["context", "input","chat_history"], 
     messages=messages,
 )
 
-output_parser = StrOutputParser()
+# Contextualize question 
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+### Contextualize question ###
+contextualize_q_system_prompt = """Given a chat history and the latest user question \
+which might reference context in the chat history, formulate a standalone question \
+which can be understood without the chat history. Do NOT answer the question, \
+just reformulate it if needed and otherwise return it as is."""
+contextualize_q_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", contextualize_q_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+history_aware_retriever = create_history_aware_retriever(
+    chat_model, retriever, contextualize_q_prompt
+)
 
-review_chain = review_prompt_template | chat_model | output_parser
-review_chain = get_memory_runnable(review_chain)
 
-def model_response(context: str, question:str) -> str:
-    return review_chain.invoke({
-        "context": context,
-        "question": question,
-    },
+qa_chain = prompt_template | chat_model | StrOutputParser()
+rag_chain = create_retrieval_chain(history_aware_retriever, qa_chain)
+
+# chain = (
+#     {"context":retriever , "question": RunnablePassthrough()}
+#     | prompt_template 
+#     | chat_model
+#     | StrOutputParser()
+# )  
+chain = get_memory_runnable(rag_chain)
+
+def model_response(question:str) -> str:
+    return chain.invoke({"input": question},
     # TODO: New chat sessions needs to have diferents session_id
     config={
         "configurable":{"session_id": "foobar"}
-    })
+    }).get('answer')
     

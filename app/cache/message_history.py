@@ -9,6 +9,7 @@ def get_memory_runnable(runnable):
     return RunnableWithMessageHistory(
         runnable,
         get_message_history,
-        input_messages_key="question",
-        history_messages_key="history",
+        input_messages_key="input",
+        history_messages_key="chat_history",
+        output_messages_key="answer"
     )

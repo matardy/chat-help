@@ -13,8 +13,10 @@ services:
       - .env
     volumes:
       - ./app:/app
+      - chroma_data:/app/chroma
     depends_on:
       - redis
 
 volumes:
   redis_data:
+  chroma_data:

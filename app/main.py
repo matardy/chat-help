@@ -26,5 +26,5 @@ class ChatRequest(BaseModel):
 
 @app.post("/message/")
 async def chat(chat_request: ChatRequest):
-    response = model_response(context="You are a lawyer", question=chat_request.message)
+    response = model_response(question=chat_request.message)
     return {"response": response}
