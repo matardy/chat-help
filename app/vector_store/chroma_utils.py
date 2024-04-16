@@ -11,11 +11,12 @@ from langchain_openai import OpenAIEmbeddings
 import chromadb
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
+embedding_model = os.getenv('EMBEDDING_MODEL')
 # Persist directory : '/app/chroma/'
 
 
 openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-    model_name="text-embedding-3-small",
+    model_name="text-embedding-ada-002",
     api_key=openai.api_key
 )
 
@@ -53,6 +54,7 @@ def get_retriever():
         client=persistent_client,
         persist_directory=persist_directory,
         collection_name="collection-foobar",
-        embedding_function=OpenAIEmbeddings()
+        embedding_function=OpenAIEmbeddings(),
+        collection_metadata={"hnsw:space": "cosine"}
     )
     return vector_db.as_retriever(k=10)

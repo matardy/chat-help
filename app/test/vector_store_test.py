@@ -12,20 +12,20 @@ docs_path = [get_absolute_path('../../app/docs/niif-16-arrendamientos-1.pdf'),
              get_absolute_path('../../app/docs/niif-16-arrendamientos.pdf')]
 
 persistent_client = chromadb.PersistentClient(path=persist_directory)
+for doc in docs_path:
+    doc = load_docs(doc)
 
-doc = load_docs(docs_path[2])
+    print("Loaded docs: ", doc, "\n")
 
-print("Loaded docs: ", doc, "\n")
+    split = split_docs(chunk_size=1500, chunk_overlap=150, docs=doc)
 
-split = split_docs(chunk_size=1500, chunk_overlap=150, docs=doc)
+    print("Loaded splits: ", split, "\n")
 
-print("Loaded splits: ", split, "\n")
+    collection, chunks = create_collection(
+                        collection_id="collection-foobar", 
+                        splits=split,
+                        persistent_client=persistent_client
+                        )
 
-collection, chunks = create_collection(
-                    collection_id="collection-foobar", 
-                    splits=split,
-                    persistent_client=persistent_client
-                    )
-
-print("Collection: ", collection)
+    print("Collection: ", collection)
 
