@@ -16,37 +16,32 @@ import os
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from typing import Dict, List, Any
+
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+
 def get_absolute_path(relative_path):
     base_path = os.path.dirname(os.path.abspath(__file__))  # Gets the directory of the current script
     return os.path.join(base_path, relative_path)
 
-persist_directory = get_absolute_path('/app/chroma/')
-persistent_client = chromadb.PersistentClient(path=persist_directory)
-vector_db = Chroma(
-        client=persistent_client,
-        persist_directory=persist_directory,
-        collection_name="collection-foobar",
-        embedding_function=OpenAIEmbeddings(),
-        collection_metadata={"hnsw:space": "cosine"}
-    )
-retriever = vector_db.as_retriever(
-    search_type="similarity_score_threshold",
-    search_kwargs={'score_threshold': 0.56},
-    k=3
-)
+retriever = get_retriever()
 
-review_template_str = """You are an Legal Assistant AI chat, you have full context of the conversation and always respond in a very elegant way. 
-- Always respond in the language of the user. 
-- If you dont know the answer, just say "Plase can you be more specific?" 
-- Your main job is to assist lawyer to get answers.
-- You have to follow the conversation and answer follow up questions like: Be more specific, what? , continue, etc. 
+review_template_str = """You are an Legal Assistant AI chat, you have full context of the conversation and always respond in a very elegant way. \
+- Always respond in the language of the user. \
+- If you dont know the answer, just say "Plase can you be more specific?" \
+- Your main job is to assist lawyer to get answers.\
+- You have to follow the conversation and answer follow up questions like: Be more specific, what? , continue, etc. \
 
 You should respond base on the context provide here:
 {context}
 
-Message histry:
+Message history:
 {chat_history}
 """
+
+contextualize_q_system_prompt = """Given a chat history and the latest user question \
+which might reference context in the chat history, formulate a standalone question \
+which can be understood without the chat history. Do NOT answer the question, \
+just reformulate it if needed and otherwise return it as is."""
 
 system_prompt = SystemMessagePromptTemplate(
     prompt=PromptTemplate(
@@ -69,13 +64,6 @@ prompt_template = ChatPromptTemplate(
     messages=messages,
 )
 
-# Contextualize question 
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-### Contextualize question ###
-contextualize_q_system_prompt = """Given a chat history and the latest user question \
-which might reference context in the chat history, formulate a standalone question \
-which can be understood without the chat history. Do NOT answer the question, \
-just reformulate it if needed and otherwise return it as is."""
 contextualize_q_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", contextualize_q_system_prompt),
@@ -87,16 +75,9 @@ history_aware_retriever = create_history_aware_retriever(
     chat_model, retriever, contextualize_q_prompt
 )
 
-
+# Chains definition
 qa_chain = prompt_template | chat_model | StrOutputParser()
 rag_chain = create_retrieval_chain(history_aware_retriever, qa_chain)
-
-# chain = (
-#     {"context":retriever , "question": RunnablePassthrough()}
-#     | prompt_template 
-#     | chat_model
-#     | StrOutputParser()
-# )  
 chain = get_memory_runnable(rag_chain)
 
 # TODO: New chat sessions needs to have diferents session_id

@@ -47,8 +47,9 @@ def get_absolute_path(relative_path):
     base_path = os.path.dirname(os.path.abspath(__file__))  # Gets the directory of the current script
     return os.path.join(base_path, relative_path)
 
-persist_directory = get_absolute_path('../../app/chroma/')
+persist_directory = get_absolute_path('/app/chroma/')
 persistent_client = chromadb.PersistentClient(path=persist_directory)
+
 def get_retriever():
     vector_db = Chroma(
         client=persistent_client,
@@ -57,4 +58,8 @@ def get_retriever():
         embedding_function=OpenAIEmbeddings(),
         collection_metadata={"hnsw:space": "cosine"}
     )
-    return vector_db.as_retriever(k=10)
+    return vector_db.as_retriever(
+    search_type="similarity_score_threshold",
+    search_kwargs={'score_threshold': 0.56},
+    k=3
+)
