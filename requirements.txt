@@ -9,3 +9,4 @@ langchain-chroma
 pypdf
 chromadb
 langchain-text-splitters
+langchain_community
