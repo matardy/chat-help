@@ -7,9 +7,7 @@ def get_absolute_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 persist_directory = get_absolute_path('../../app/chroma/')
-docs_path = [get_absolute_path('../../app/docs/niif-16-arrendamientos-1.pdf'),
-             get_absolute_path('../../app/docs/niif-16-arrendamientos-2.pdf'),
-             get_absolute_path('../../app/docs/niif-16-arrendamientos.pdf')]
+docs_path = [get_absolute_path('../../app/docs/niif-16-arrendamientos-1.pdf')]
 
 persistent_client = chromadb.PersistentClient(path=persist_directory)
 for doc in docs_path:
